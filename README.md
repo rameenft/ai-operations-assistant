@@ -2,18 +2,13 @@
 
 A production-planning chatbot that **explains approved numbers instead of inventing them**.
 
-ZAAR sells medical apparel through B2B (hospitals) and retail channels. Each planning cycle, the **production manager** needs to know how many finished goods to make, and the **supply manager** needs to know how much material to reorder. I built the data pipeline and the chatbot behind those answers on Snowflake (Streams, Tasks, Dynamic Tables, Cortex, Streamlit).
+ZAAR sells medical apparel across several channels, including hospitals, retail partners and online. Each planning cycle, the **production manager** needs to know how many finished goods to make, and the **supply manager** needs to know how much material to reorder. I worked on building the data pipeline with a team, and worked solely on the chatbot behind those answers in Snowflake.
 
-> **About this repo.** The real system runs on Snowflake with confidential business data, so it can't be published. This repo is a **runnable prototype of the same design**: every number is synthetic, Snowflake is replaced by a local `sqlite` database, and the LLM is replaced by a deterministic stand-in so the evaluation is reproducible with zero credentials. The SQL in [`sql/`](sql) is Snowflake-dialect and illustrative (it is not executed here). The original design document is in [`docs/system_design.pdf`](docs/system_design.pdf).
+## About this repo
 
-**What to look at**
+The real system runs on Snowflake with confidential business data, so it can't be published. This repo is a **runnable prototype of the same design**: every number is synthetic, Snowflake is replaced by a local `sqlite` database, and the LLM is replaced by a deterministic stand-in so the evaluation is reproducible with zero credentials.
 
-| If you want to see… | Go to |
-|---|---|
-| Business context | [§1](#1-business-objective-and-system-boundaries) |
-| System design (pipeline, calculations, architecture) | [§2–§6](#2-end-to-end-data-pipeline) and [`sql/`](sql) |
-| The chatbot | [`src/zaar_assistant/`](src/zaar_assistant) |
-| How it is evaluated | [§8–§9](#8-reliability-improvement-story) and [`eval/`](eval) |
+It emphasizes two things: the **design of the system and its data workflow**, and the **effectiveness of the chatbot and how it is evaluated**.
 
 ---
 
@@ -25,7 +20,13 @@ ZAAR sells medical apparel through B2B (hospitals) and retail channels. Each pla
 
 That boundary is the core design decision: in an operations setting a fluent wrong number is worse than no answer, so the system is built to **fail closed**.
 
-## 2. End-to-end data pipeline
+## 2. System architecture
+
+![System architecture: source systems and ingestion feed a Snowflake pipeline (RAW, classify, change processing, curated, serve) with a quarantine error table; the assistant application reads the serve layer through allowlisted tools; alerts and evaluation run across everything.](docs/images/zaar_system_architecture.png)
+
+The fallback dashboard is a **parallel path**, not a downstream chatbot output: if the chatbot is down or blocked, managers still have a validated snapshot. More views in [`docs/architecture.md`](docs/architecture.md): the **request lifecycle** (every point where a question can be refused, retried or blocked), the **data model** (entity-relationship diagram) and the **trust boundaries and role access** table.
+
+## 3. End-to-end data pipeline
 
 | Stage | Implementation and engineering controls |
 |---|---|
@@ -68,7 +69,7 @@ Runnable version with tests: [`ingest.py`](src/zaar_assistant/ingest.py), [`test
 
 Code: [`sql/01_raw_and_sku_mapping.sql`](sql/01_raw_and_sku_mapping.sql) · [`02_streams_tasks_merge.sql`](sql/02_streams_tasks_merge.sql) · [`03_dynamic_tables.sql`](sql/03_dynamic_tables.sql) · [`04_planning_views.sql`](sql/04_planning_views.sql)
 
-## 3. Deterministic planning calculations
+## 4. Deterministic planning calculations
 
 ```
 net finished-goods requirement = max(0, forecast demand + safety stock − available stock − scheduled receipts)
@@ -80,36 +81,6 @@ material reorder               = max(0, planned production × BOM usage + materi
 ```
 
 **Worked example (synthetic):** 500 demand + 100 safety − 180 on hand − 50 incoming = **370** net units → rounded up to **400** with 100-unit batches. Implemented in [`planning.py`](src/zaar_assistant/planning.py) (Python mirror of the SQL) and pinned by a test in [`tests/test_planning.py`](tests/test_planning.py). This exact example is also the story of iteration V4 below.
-
-## 4. Architecture
-
-**At a glance**
-
-```mermaid
-flowchart TD
-    SRC["<b>Source systems</b><br/>Shopify / Windsor.ai · Google Sheets · S3 / Snowpipe"]
-    SNOW["<b>Snowflake data platform</b><br/>Raw → classify (LEFT JOIN SKU map) → valid: Streams + Tasks / MERGE → Dynamic Tables / curated views · rejected: quarantine"]
-    BOT["<b>Custom Cortex chatbot</b><br/>Streamlit → scope + RBAC → allowlisted SQL → LLM → deterministic validation"]
-    DASH["<b>Fallback dashboard</b><br/>daily validated snapshot + timestamp"]
-    CTRL["<b>Answer control</b><br/>validated answer · partial answer · refusal · retry · safe failure"]
-    OPS["<b>Operations / alerts</b><br/>freshness · logs · retries · escalation"]
-    EVAL["<b>Evaluation loop</b><br/>automated tests + manual reconciliation + manager feedback + regression suite"]
-
-    SRC --> SNOW
-    SNOW --> BOT
-    SNOW --> DASH
-    BOT --> CTRL
-    CTRL --> OPS
-    CTRL --> EVAL
-```
-
-Solid arrows are the primary data/answer flow. The dashboard is a **parallel fallback**, not a downstream chatbot output: if the chatbot is down or blocked, managers still have a validated snapshot.
-
-**Detailed component architecture**: sources, ingestion, the three Snowflake schemas, the assistant's internal stages, and where the fallback dashboard and evaluation loop attach.
-
-![System architecture: source systems and ingestion feed a Snowflake pipeline (RAW, classify, change processing, curated, serve) with a quarantine error table; the assistant application reads the serve layer through allowlisted tools; alerts and evaluation run across everything.](docs/images/zaar_system_architecture.png)
-
-More views in [`docs/architecture.md`](docs/architecture.md): the **request lifecycle** (sequence diagram showing every point where a question can be refused, retried or blocked), the **data model** (entity-relationship diagram) and the **trust boundaries and role access** table.
 
 ## 5. Controlled retrieval and request-time controls
 
