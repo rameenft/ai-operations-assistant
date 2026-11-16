@@ -1,4 +1,4 @@
-# ZAAR | AI Operations Assistant
+# AI Operations Assistant
 
 A production-planning chatbot that **explains approved numbers instead of inventing them**.
 
