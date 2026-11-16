@@ -14,7 +14,6 @@ Four views of the same system, from the outside in. All figures are for the desi
 ```mermaid
 flowchart TB
     subgraph SRC["Source systems"]
-        direction TB
         S1["Shopify<br/>orders · cancellations"]
         S2["Hospital B2B orders<br/>Google Sheets"]
         S3["Retailer / vendor files<br/>S3 bucket"]
@@ -22,14 +21,12 @@ flowchart TB
     end
 
     subgraph ING["Ingestion"]
-        direction TB
         I1["Fivetran"]
         I2["Scheduled Sheets load"]
         I3["Snowpipe"]
     end
 
     subgraph SF["Snowflake data platform"]
-        direction TB
         RAW[("RAW schema<br/>immutable landing<br/>source IDs · ingested_at · batch_id")]
         MAP["SKU standardization<br/>canonical SKU map · dedup<br/>unit normalization"]
         QUA[("QUARANTINE<br/>unmapped SKUs<br/>malformed records")]
@@ -41,7 +38,6 @@ flowchart TB
     end
 
     subgraph APP["Assistant application"]
-        direction TB
         UI["Streamlit UI<br/>question + authenticated user"]
         PRE["Pre-retrieval controls<br/>authenticate · authorize role<br/>scope class · normalize SKU/period"]
         LLM["Cortex LLM<br/>selects a tool + parameters<br/>and phrases the result"]
@@ -56,7 +52,6 @@ flowchart TB
     DASH["Fallback dashboard<br/>daily validated snapshot<br/>+ as-of timestamp"]
 
     subgraph OBS["Operations and quality"]
-        direction TB
         OPS["Alerts and logs<br/>job failures · freshness SLA<br/>retries · escalation"]
         EVAL["Evaluation loop<br/>automated tests · manual reconciliation<br/>manager feedback · regression suite"]
     end
