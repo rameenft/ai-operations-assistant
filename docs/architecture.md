@@ -12,7 +12,7 @@ Four views of the same system, from the outside in. All figures are for the desi
 ## 1. Component architecture
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph SRC["Source systems"]
         direction TB
         S1["Shopify<br/>orders · cancellations"]

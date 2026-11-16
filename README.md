@@ -77,7 +77,7 @@ Solid arrows are the primary data/answer flow. The dashboard is a **parallel fal
 **Detailed component architecture**: sources, ingestion, the three Snowflake schemas, the assistant's internal stages, and where the fallback dashboard and evaluation loop attach.
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph SRC["Source systems"]
         direction TB
         S1["Shopify<br/>orders · cancellations"]
