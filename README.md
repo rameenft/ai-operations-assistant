@@ -1,6 +1,6 @@
 # Snowflake Planning Pipeline and AI Assistant
 
-A production-planning chatbot that **explains approved numbers **.
+A production-planning chatbot that explains approved numbers.
 
 ZAAR sells medical apparel across several channels, including hospitals, retail partners and online. Each planning cycle, the **production manager** needs to know how many finished goods to make, and the **supply manager** needs to know how much material to reorder. I worked on building the data pipeline with a team, and worked solely on the chatbot behind those answers in Snowflake.
 
