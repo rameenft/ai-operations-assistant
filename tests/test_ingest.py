@@ -3,8 +3,14 @@ import sqlite3
 
 import pytest
 
-from ops_assistant.ingest import (load_ingest_tables, quarantine_summary, reconcile, replay_unmapped_skus,
-                                   run_ingest, sku_map_duplicates)
+from ops_assistant.ingest import (
+    load_ingest_tables,
+    quarantine_summary,
+    reconcile,
+    replay_unmapped_skus,
+    run_ingest,
+    sku_map_duplicates,
+)
 
 
 @pytest.fixture()

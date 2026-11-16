@@ -125,4 +125,4 @@ def run_tool(conn: sqlite3.Connection, name: str, params: dict, role: str) -> li
     fn, allowed = TOOLS[name]
     if set(params) != allowed:
         raise ParameterError(f"{name} requires exactly {sorted(allowed)}")
-    return fn(conn, **params)
+    return fn(conn, **params)  # type: ignore[call-arg]  # params checked against the allowlist above

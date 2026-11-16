@@ -1,3 +1,10 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [project]
 name = "ai-operations-assistant"
 version = "0.1.0"
@@ -6,10 +13,26 @@ requires-python = ">=3.10"
 dependencies = ["pyyaml"]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "pytest-cov", "ruff", "mypy", "types-PyYAML"]
 app = ["streamlit"]
 
 # pytest finds the package (src) and the eval helpers (eval) without installing
 [tool.pytest.ini_options]
 pythonpath = ["src", "eval"]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+src = ["src", "eval", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+# E501: a few long regex/SQL/test lines are kept readable as-is.
+# B023: the retry lambda in answer.py is called immediately, so late binding is safe.
+# B905: zip() inputs are equal length by construction.
+ignore = ["E501", "B023", "B905"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src"]
+ignore_missing_imports = true

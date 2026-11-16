@@ -6,3 +6,10 @@ __pycache__/
 .DS_Store
 .env
 AI_Chatbot_System_Design_Revised.pdf
+
+# generated eval scorecards
+eval/RESULTS_*.md
+.coverage
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
