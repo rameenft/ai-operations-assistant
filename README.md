@@ -107,62 +107,7 @@ Solid arrows are the primary data/answer flow. The dashboard is a **parallel fal
 
 **Detailed component architecture**: sources, ingestion, the three Snowflake schemas, the assistant's internal stages, and where the fallback dashboard and evaluation loop attach.
 
-```mermaid
-flowchart TB
-    subgraph SRC["Source systems"]
-        S1["Shopify<br/>orders · cancellations"]
-        S2["Hospital B2B orders<br/>Google Sheets"]
-        S3["Retailer / vendor files<br/>S3 bucket"]
-        S4["Planning inputs<br/>forecast · BOM · batch sizes<br/>capacity · lead times"]
-    end
-
-    subgraph ING["Ingestion"]
-        I1["Windsor.ai"]
-        I2["Scheduled Sheets load"]
-        I3["Snowpipe"]
-    end
-
-    subgraph SF["Snowflake data platform"]
-        RAW[("RAW<br/>immutable landing<br/>accepts everything")]
-        CLS["Classify<br/>LEFT JOIN SKU map + validity rules<br/>every row: valid or a reject reason"]
-        QUA[("QUARANTINE<br/>error table: reason + status<br/>unmapped SKUs · malformed rows")]
-        CHG["Change processing<br/>Streams + Tasks · MERGE<br/>valid rows only, one transaction"]
-        CUR[("CURATED<br/>Dynamic Tables")]
-        SERVE[("SERVE<br/>read-only views")]
-        RAW --> CLS
-        CLS -- valid --> CHG --> CUR --> SERVE
-        CLS -- rejected --> QUA
-        QUA -. "fix SKU map, replay as new batch" .-> RAW
-    end
-
-    subgraph APP["Assistant application"]
-        UI["Streamlit UI<br/>question + authenticated user"]
-        PRE["Pre-retrieval controls<br/>authenticate · authorize role<br/>scope class · normalize SKU/period"]
-        LLM["Cortex LLM<br/>selects a tool + parameters<br/>and phrases the result"]
-        REG["Tool registry<br/>3 allowlisted read-only tools<br/>server-side param validation"]
-        GATE["Post-generation validator<br/>claim ↔ record check<br/>qualifiers · freshness"]
-        ANS["Answer control<br/>answer · partial · refuse<br/>clarify · safe failure"]
-        UI --> PRE --> LLM --> REG
-        REG --> LLM
-        LLM --> GATE --> ANS --> UI
-    end
-
-    DASH["Fallback dashboard<br/>daily validated snapshot<br/>+ as-of timestamp"]
-    OPS["Alerts and logs<br/>job failures · reject rate<br/>unmapped SKUs · freshness · retries"]
-    EVAL["Evaluation loop<br/>automated tests · manual reconciliation<br/>manager feedback · regression suite"]
-
-    S1 --> I1 --> RAW
-    S2 --> I2 --> RAW
-    S3 --> I3 --> RAW
-    S4 --> CUR
-    SERVE -- "SELECT only<br/>(role-scoped)" --> REG
-    SERVE -- "daily snapshot" --> DASH
-    QUA --> OPS
-    CHG --> OPS
-    ANS --> OPS
-    ANS --> EVAL
-    EVAL -. "new regression cases<br/>logic fixes" .-> CUR
-```
+![System architecture: source systems and ingestion feed a Snowflake pipeline (RAW, classify, change processing, curated, serve) with a quarantine error table; the assistant application reads the serve layer through allowlisted tools; alerts and evaluation run across everything.](docs/images/zaar_system_architecture.png)
 
 More views in [`docs/architecture.md`](docs/architecture.md): the **request lifecycle** (sequence diagram showing every point where a question can be refused, retried or blocked), the **data model** (entity-relationship diagram) and the **trust boundaries and role access** table.
 
