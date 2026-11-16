@@ -1,3 +1,4 @@
+-- NOTE: Snowflake-dialect reference script; read it alongside docs/architecture.md.
 -- =============================================================================
 -- 02  CHANGE PROCESSING, QUARANTINE, REPLAY AND CHECKS   (Snowflake, illustrative)
 -- Cancellations, returns and corrected orders flow through as CHANGES, not rebuilds.

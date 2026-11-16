@@ -1,3 +1,4 @@
+"""Tests for the deterministic planning math (batch rounding, net requirement, material needs)."""
 from ops_assistant.planning import net_requirement, plan_material, plan_production, round_up_to_batch
 
 

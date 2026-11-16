@@ -1,3 +1,4 @@
+# virtualenv, caches and local secrets
 .venv/
 __pycache__/
 *.pyc

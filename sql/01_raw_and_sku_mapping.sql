@@ -1,3 +1,4 @@
+-- NOTE: Snowflake-dialect reference script; read it alongside docs/architecture.md.
 -- =============================================================================
 -- 01  RAW LANDING, SKU STANDARDIZATION AND ERROR HANDLING   (Snowflake, illustrative)
 -- Not executed by the local prototype (see src/ops_assistant/ingest.py for a runnable mirror).

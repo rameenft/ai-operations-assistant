@@ -1,3 +1,4 @@
+"""Tests for claim-to-record validation: wrong SKU, period, unit or value must be blocked."""
 from dataclasses import replace
 
 from ops_assistant.db import build_database

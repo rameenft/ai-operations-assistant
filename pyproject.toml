@@ -9,6 +9,7 @@ dependencies = ["pyyaml"]
 dev = ["pytest"]
 app = ["streamlit"]
 
+# pytest finds the package (src) and the eval helpers (eval) without installing
 [tool.pytest.ini_options]
 pythonpath = ["src", "eval"]
 testpaths = ["tests"]

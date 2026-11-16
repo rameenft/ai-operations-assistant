@@ -1,3 +1,4 @@
+# core runtime dependency
 pyyaml>=6.0
 pytest>=8.0
 # optional, only for the chat UI:

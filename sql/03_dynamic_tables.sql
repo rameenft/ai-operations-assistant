@@ -1,3 +1,4 @@
+-- NOTE: Snowflake-dialect reference script; read it alongside docs/architecture.md.
 -- =============================================================================
 -- 03  CURATED INVENTORY + REPLENISHMENT VIEWS via DYNAMIC TABLES   (illustrative)
 -- Freshness is declared (TARGET_LAG), not hand-scheduled. The assistant's freshness

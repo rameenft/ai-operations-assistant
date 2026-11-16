@@ -1,3 +1,4 @@
+"""Tests for the allowlisted tools (parameters, RBAC) and the scope/tool router."""
 import pytest
 
 from ops_assistant.db import build_database, load_catalog

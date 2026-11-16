@@ -1,3 +1,4 @@
+"""Tests for order ingest: classification, quarantine and replay of corrected rows."""
 import sqlite3
 
 import pytest

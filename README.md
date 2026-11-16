@@ -168,6 +168,8 @@ streamlit run app/streamlit_app.py
 
 ## Repo layout
 
+A quick map of where things live:
+
 ```
 README.md
 docs/system_design.pdf          original design document

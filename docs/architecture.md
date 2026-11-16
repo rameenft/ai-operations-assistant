@@ -1,5 +1,7 @@
 # System architecture
 
+> Diagrams below are rendered from Mermaid or the images in `docs/images/`.
+
 Four views of the same system, from the outside in. All figures are for the design; the prototype in this repo implements the **Serve → Assistant → Evaluation** path locally (sqlite instead of Snowflake, deterministic stand-ins instead of the Cortex LLM).
 
 1. [Component architecture](#1-component-architecture): what the pieces are and where they live

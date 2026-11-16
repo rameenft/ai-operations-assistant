@@ -1,4 +1,4 @@
-# Labeled evaluation set (synthetic). Each question carries the EXPECTED response class and,
+# Labeled evaluation set (synthetic; used by eval/run_eval.py and the pytest release gate). Each question carries the EXPECTED response class and,
 # where relevant, the exact approved values and qualifiers the answer must contain.
 #   status: answer | partial | refuse | clarify
 #   values: claim-to-record checks (metric + entity + value) - cycle/unit/record ID checked too

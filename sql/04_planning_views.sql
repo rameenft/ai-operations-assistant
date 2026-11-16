@@ -1,3 +1,4 @@
+-- NOTE: Snowflake-dialect reference script; read it alongside docs/architecture.md.
 -- =============================================================================
 -- 04  DETERMINISTIC PLANNING CALCULATIONS (SERVE LAYER)   (illustrative)
 -- The numbers the chatbot is allowed to quote come ONLY from these views.
