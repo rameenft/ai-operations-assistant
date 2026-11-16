@@ -53,7 +53,7 @@ def answer_question(
         return Response(status, text, evidence or [], scope, reason, alerts)
 
     try:
-        plan = route(question, load_catalog(conn))
+        plan = route(question, load_catalog(conn), role)
         if plan.action == "refuse":
             return done(REFUSE, plan.message, plan.scope, "out_of_scope")
         if plan.action == "clarify":
@@ -95,9 +95,9 @@ def answer_question(
                         "not showing it.", plan.scope, "validation_failed")
 
         as_of = min(e.source_ts for e in evidence)
-        text = f"{generated.text}\n\nSource data as of {as_of}."
+        text = f"{generated.text}\n\n_Source data as of {as_of}._"
         if plan.not_covered:
-            text += "\n\nNot covered: " + "; ".join(plan.not_covered) + "."
+            text += "\n\n**Not covered:** " + "; ".join(plan.not_covered) + "."
             return done(PARTIAL, text, plan.scope, "partial", evidence)
         return done(ANSWER, text, plan.scope, "", evidence)
 

@@ -152,3 +152,31 @@
   role: supply_manager
   question: "What should I order?"
   expect: {status: clarify}
+
+# ---------------- manager-requested defaults: safety stock ----------------
+- id: Q33
+  role: production_manager
+  question: "What is the safety stock for scrub tops?"
+  expect: {status: answer, values: [{metric: safety_stock, entity: SCR-TOP-001, value: 100}]}
+- id: Q34
+  role: production_manager
+  question: "What are the safety stock levels for all SKUs?"
+  expect:
+    status: answer
+    values:
+      - {metric: safety_stock, entity: SCR-TOP-001, value: 100}
+      - {metric: safety_stock, entity: SCR-PNT-001, value: 150}
+      - {metric: safety_stock, entity: LAB-COT-001, value: 40}
+- id: Q35
+  role: supply_manager
+  question: "What are the safety stock levels for all materials?"
+  expect:
+    status: answer
+    values:
+      - {metric: safety_stock, entity: FAB-POLY-BLU, value: 200}
+      - {metric: safety_stock, entity: FAB-COT-WHT, value: 100}
+      - {metric: safety_stock, entity: BTN-STD, value: 300}
+- id: Q36
+  role: production_manager
+  question: "What is the safety stock for BTN-STD?"      # cross-role
+  expect: {status: refuse}

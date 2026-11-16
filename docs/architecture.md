@@ -18,7 +18,7 @@ Four views of the same system, from the outside in. All figures are for the desi
 Reading the diagram:
 
 - **Bad data is visible, never dropped.** RAW accepts every record. The classify step uses a `LEFT JOIN` to the SKU map so unmapped rows survive with a reason instead of vanishing, and rejected rows wait in QUARANTINE until the SKU map is fixed (then replayed) or the source is corrected. Alerts fire on reject rate and on unmapped SKUs left open too long.
-- **Everything the user sees is traceable to a SERVE-layer row.** The LLM never sees the raw or curated layers and never writes SQL; it only picks one of three tools.
+- **Everything the user sees is traceable to a SERVE-layer row.** The LLM never sees the raw or curated layers and never writes SQL; it only picks from five allowlisted tools.
 - **The fallback dashboard hangs off SERVE, not off the chatbot.** If the assistant is down, blocked by validation, or the data is stale, managers still have the last validated snapshot.
 - **The evaluation loop feeds back into the pipeline**, not just the chatbot. The V4 fix (batch size and capacity constraints) was a change to the planning SQL found through manager feedback.
 
@@ -203,7 +203,7 @@ Every SERVE row carries `record_id` and `source_ts`. Those two columns are what 
 | Zone | Contents | Who or what can reach it | Control |
 |---|---|---|---|
 | **Untrusted input** | The user's question text; anything inside it ("ignore previous instructions", raw SQL) | Anyone signed in | Scope classification, injection refusal, parameter validation against the catalog |
-| **Model zone** | Cortex LLM | Receives the question and *structured evidence only* | No SQL execution rights; can only choose among 3 allowlisted tools; output treated as untrusted |
+| **Model zone** | Cortex LLM | Receives the question and *structured evidence only* | No SQL execution rights; can only choose among 5 allowlisted tools; output treated as untrusted |
 | **Tool boundary** | Tool registry | Called by the model | Role-to-tool permission checked **before** any data access; exact parameter set enforced; fixed `SELECT` statements |
 | **Data zone** | SERVE views (curated and raw are not exposed) | Assistant service role, `SELECT` only | Role-based access: production role reaches production and inventory views, supply role reaches material views |
 | **Output boundary** | Validator and answer control | Everything before display | Nothing is shown unless it passes claim-to-record validation; any exception fails closed |
@@ -211,7 +211,7 @@ Every SERVE row carries `record_id` and `source_ts`. Those two columns are what 
 
 | Role | Tools allowed | Data domain |
 |---|---|---|
-| `production_manager` | `get_production_plan`, `get_inventory_status` | Finished goods |
-| `supply_manager` | `get_material_reorder` | Materials and suppliers |
+| `production_manager` | `get_production_plan`, `get_inventory_status`, `get_safety_stock` | Finished goods |
+| `supply_manager` | `get_material_reorder`, `get_material_safety_stock` | Materials and suppliers |
 
 The role table is enforced in code in [`tools.py`](../src/ops_assistant/tools.py) (`ROLE_PERMISSIONS`).

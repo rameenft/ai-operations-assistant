@@ -42,8 +42,8 @@ class Evidence:
 
 
 ROLE_PERMISSIONS: dict[str, set[str]] = {
-    "production_manager": {"get_production_plan", "get_inventory_status"},
-    "supply_manager": {"get_material_reorder"},
+    "production_manager": {"get_production_plan", "get_inventory_status", "get_safety_stock"},
+    "supply_manager": {"get_material_reorder", "get_material_safety_stock"},
 }
 
 
@@ -94,6 +94,24 @@ def get_inventory_status(conn: sqlite3.Connection, sku: str, cycle: str) -> list
     ]
 
 
+def get_safety_stock(conn: sqlite3.Connection, sku: str, cycle: str) -> list[Evidence]:
+    _require_known(conn, "batch_rules", "sku", sku, "SKU")
+    _require_cycle(conn, cycle)
+    r = conn.execute("SELECT * FROM forecast WHERE sku = ? AND cycle = ?", (sku, cycle)).fetchone()
+    if r is None:
+        raise ParameterError(f"No safety stock record for {sku} in {cycle}")
+    return [Evidence(metric="safety_stock", entity=sku, cycle=cycle, value=r["safety_stock"], unit="units",
+                     record_id=r["record_id"], source_ts=r["source_ts"])]
+
+
+def get_material_safety_stock(conn: sqlite3.Connection, material: str, cycle: str) -> list[Evidence]:
+    _require_known(conn, "material_inventory", "material", material, "material")
+    _require_cycle(conn, cycle)
+    r = conn.execute("SELECT * FROM material_inventory WHERE material = ?", (material,)).fetchone()
+    return [Evidence(metric="safety_stock", entity=material, cycle=cycle, value=r["safety_stock"], unit=r["unit"],
+                     record_id=r["record_id"], source_ts=r["source_ts"])]
+
+
 def get_material_reorder(conn: sqlite3.Connection, material: str, cycle: str) -> list[Evidence]:
     _require_known(conn, "material_inventory", "material", material, "material")
     _require_cycle(conn, cycle)
@@ -114,6 +132,8 @@ TOOLS = {
     "get_production_plan": (get_production_plan, {"sku", "cycle"}),
     "get_inventory_status": (get_inventory_status, {"sku", "cycle"}),
     "get_material_reorder": (get_material_reorder, {"material", "cycle"}),
+    "get_safety_stock": (get_safety_stock, {"sku", "cycle"}),
+    "get_material_safety_stock": (get_material_safety_stock, {"material", "cycle"}),
 }
 
 

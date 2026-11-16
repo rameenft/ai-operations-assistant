@@ -1,4 +1,4 @@
-# AI Operations Assistant
+# Snowflake Planning Pipeline and AI Assistant
 
 A production-planning chatbot that **explains approved numbers instead of inventing them**.
 
@@ -113,16 +113,23 @@ Synthetic outputs from this repo (`production_manager` unless noted):
 
 ```text
 Q: How many scrub tops should we produce next cycle?
-A: SCR-TOP-001 (2026-C12): net requirement 370 units, planned production 400 units. [INV-0001+FC-0001]
-   Source data as of 2026-11-15T05:00:00.
+A: **SCR-TOP-001 (2026-C12): produce 400 units** [INV-0001+FC-0001]
+   - Net requirement: 370 units
+   _Source data as of 2026-11-15T05:00:00._
 
 Q: How many scrub pants should we make this cycle?
-A: SCR-PNT-001 (2026-C12): net requirement 550 units, planned production 500 units. Capacity exception:
-   the batch-rounded requirement exceeds cycle capacity by 100 units, so planned production is capped at 500 units. [INV-0002+FC-0002]
+A: **SCR-PNT-001 (2026-C12): produce 500 units** [INV-0002+FC-0002]
+   - Net requirement: 550 units
+   - Capacity exception: requirement exceeds cycle capacity by 100 units, so production is capped at 500 units.
+
+Q: What are the safety stock levels for all SKUs?                                 ← one of the default questions
+A: - **SCR-TOP-001** (2026-C12): safety stock 100 units [FC-0001]
+   - **SCR-PNT-001** (2026-C12): safety stock 150 units [FC-0002]
+   - **LAB-COT-001** (2026-C12): safety stock 40 units [FC-0003]
 
 Q: How many scrub tops should we produce, and what will demand be in 2027?      ← mixed → partial answer
-A: SCR-TOP-001 (2026-C12): net requirement 370 units, planned production 400 units. [INV-0001+FC-0001]
-   Not covered: new demand forecasts or predictions are outside this assistant's scope (it explains approved results only).
+A: **SCR-TOP-001 (2026-C12): produce 400 units** [INV-0001+FC-0001] ... **Not covered:** new demand forecasts or
+   predictions are outside this assistant's scope (it explains approved results only).
 
 Q: How much BTN-STD should we order?                                             ← wrong role
 A: You don't have access to that data domain with your current role.
@@ -130,15 +137,17 @@ A: You don't have access to that data domain with your current role.
 
 ## 8. Reliability improvement story
 
-Four iterations, each driven by a failure the previous version could not see:
+Five iterations, each driven by a failure the previous version could not see:
 
 **V1: Automated source reconciliation.** Source-grounding from day one: every generated quantity had to match the retrieved Snowflake record on metric, SKU, cycle and unit; unsupported claims were blocked before display. Tests deliberately swapped SKUs, periods and units. → [`validator.py`](src/ops_assistant/validator.py), the `swap_*` cases in [`eval/failure_injection.py`](eval/failure_injection.py)
 
-**V2: Manual evaluation and error discovery.** Built a ~30-question evaluation set and compared answers by hand with the authoritative Snowflake tables. Manual review exposed problems that numerical matching alone missed: omitted qualifiers, incomplete responses, stale evidence. Automated checks were expanded and each finding became a regression case. → [`eval/questions.yaml`](eval/questions.yaml), [`eval/manual_review_template.csv`](eval/manual_review_template.csv)
+**V2: Manual evaluation and error discovery.** Built a ~35-question evaluation set and compared answers by hand with the authoritative Snowflake tables. Manual review exposed problems that numerical matching alone missed: omitted qualifiers, incomplete responses, stale evidence. Automated checks were expanded and each finding became a regression case. → [`eval/questions.yaml`](eval/questions.yaml), [`eval/manual_review_template.csv`](eval/manual_review_template.csv)
 
 **V3: Gray-zone questions and scope handling.** Added a third behavior between *answer* and *refuse*: **partial answer**. For mixed requests the assistant answers only the supported part and explicitly says what is not covered; fully unsupported forecasting questions are refused. → Q19–Q22 in the eval set
 
 **V4: Production-manager feedback and planning logic.** A manager flagged a mathematically valid but operationally unusable recommendation (370 units despite 100-unit production batches). I investigated the upstream assumptions, added batch-size and capacity constraints in SQL, and tested the corrected result; the chatbot then retrieved the revised approved quantity (**400**). Note the fix was in the *planning logic*, not the chatbot. → `v4_regression_batch_rounding_370_to_400` in [`eval/failure_injection.py`](eval/failure_injection.py)
+
+**V5: Manager trial and usability.** I had the managers use the bot and incorporated their feedback. *Length and format:* answers now lead with the number they asked for in bold, put supporting figures in short bullets, and collapse to one line per item for list questions (capped by a test). *Default questions:* the chat UI shows one-click buttons for the questions they ask every cycle, including **safety stock levels**, which needed a new allowlisted tool per role. Both are pinned by tests, and every default question is checked to return a validated answer. → [`generator.py`](src/ops_assistant/generator.py), [`suggestions.py`](src/ops_assistant/suggestions.py), Q33–Q36 in the eval set
 
 ## 9. Evaluation and release gates
 

@@ -39,7 +39,7 @@ def test_omitted_capacity_qualifier_blocked():
     ev = _evidence("SCR-PNT-001")
     good = TemplateGenerator().generate("q", ev)
     assert "Capacity exception" in good.text
-    stripped = good.text.split(" Capacity exception")[0] + " [" + good.text.split("[")[-1]
+    stripped = "\n".join(ln for ln in good.text.splitlines() if "Capacity exception" not in ln)
     res = validate(GeneratedAnswer(stripped, good.claims), ev)
     assert not res.ok and any("capacity exception" in e for e in res.errors)
 

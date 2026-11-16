@@ -52,7 +52,7 @@ class TamperedGenerator:
             text = re.sub(r"(\):[^\d]*)\d[\d,]*", lambda m: m.group(1) + fmt(new), text, count=1)
             claims[0] = replace(c0, value=new)
         elif self.mode == "omit_qualifier":
-            text = re.sub(r" Capacity exception:[^\[]*", "", text)
+            text = re.sub(r"\n- Capacity exception:[^\n]*", "", text)
         elif self.mode == "invented_number":
             text += " Demand is expected to grow 12% next month."
         return GeneratedAnswer(text, claims)
@@ -140,5 +140,5 @@ def run_reliability_scenarios() -> list[Result]:
     r = answer_question(q, PM, build_database(), now=NOW)
     planned = next(e.value for e in r.evidence if e.metric == "planned_production")
     out.append(Result("v4_regression_batch_rounding_370_to_400", "reliability",
-                      planned == 400 and "planned production 370" not in r.text, f"planned={planned}"))
+                      planned == 400 and "produce 370" not in r.text, f"planned={planned}"))
     return out

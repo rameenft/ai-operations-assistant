@@ -20,6 +20,7 @@ _CYCLE = re.compile(r"\b\d{4}-C\d{1,2}\b")
 _ALL = re.compile(r"\b(all|every|each)\b", re.I)
 
 INTENTS = {
+    "safety": re.compile(r"\b(safety[- ]stock\w*|buffer stock|stock buffer)\b", re.I),
     "material": re.compile(r"\b(re-?order\w*|order|purchas\w*|buy|procure\w*|material\w*|fabric\w*|button\w*|lead time)\b", re.I),
     "production": re.compile(r"\b(produc\w*|make|made|manufactur\w*|plan|batch\w*|net requirement)\b", re.I),
     "inventory": re.compile(r"\b(inventory|stock|on[- ]hand|incoming|scheduled receipts?|in stock)\b", re.I),
@@ -35,7 +36,15 @@ OUT_OF_SCOPE = [
      "that topic is outside production and supply planning"),
 ]
 
+# Weak words ("fabric", "stock") also appear in safety-stock questions; only these strong verbs
+# keep a second intent alive next to "safety".
+STRONG = {
+    "production": re.compile(r"\b(produc\w*|make|made|manufactur\w*|net requirement)\b", re.I),
+    "material": re.compile(r"\b(re-?order\w*|order|purchas\w*|buy|procure\w*|lead time)\b", re.I),
+}
+
 TOOL_FOR_INTENT = {
+    "safety": ("get_safety_stock", "sku"),
     "production": ("get_production_plan", "sku"),
     "inventory": ("get_inventory_status", "sku"),
     "material": ("get_material_reorder", "material"),
@@ -51,12 +60,14 @@ class RoutePlan:
     message: str = ""
 
 
-def route(question: str, catalog: dict) -> RoutePlan:
+def route(question: str, catalog: dict, role: str | None = None) -> RoutePlan:
     q = question.strip()
     scan = _CYCLE.sub(" ", q)  # a cycle label like 2027-C03 is a period, not "the year 2027"
 
     not_covered = [reason for pat, reason in OUT_OF_SCOPE if pat.search(scan)]
     intents = [name for name, pat in INTENTS.items() if pat.search(q)]
+    if "safety" in intents:
+        intents = ["safety"] + [i for i in intents if i in STRONG and STRONG[i].search(q)]
     if "material" in intents and "production" in intents:
         intents.remove("production")  # "order fabric for production" is a material question
 
@@ -96,6 +107,10 @@ def route(question: str, catalog: dict) -> RoutePlan:
     calls = []
     for intent in intents:
         tool, kind = TOOL_FOR_INTENT[intent]
+        if intent == "safety":  # one intent, two data domains: decide by role (the domain the caller may see)
+            named_only_skus = bool(skus) and not mats
+            kind = "material" if (mats and not skus) or (role == "supply_manager" and not named_only_skus) else "sku"
+            tool = "get_material_safety_stock" if kind == "material" else "get_safety_stock"
         entities = skus if kind == "sku" else mats
         if not entities:
             label = "SKU" if kind == "sku" else "material"

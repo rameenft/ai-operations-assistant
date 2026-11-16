@@ -36,14 +36,33 @@ def fmt(v: float) -> str:
     return f"{int(v):,}" if float(v).is_integer() else f"{v:,.2f}"
 
 
-_PHRASES = {
-    "net_requirement": "net requirement {v} {u}",
-    "planned_production": "planned production {v} {u}",
-    "on_hand": "{v} {u} on hand",
-    "scheduled_receipts": "{v} {u} scheduled to arrive",
+# Format agreed with the managers after trial use: lead with the number they asked for, keep
+# supporting figures to short bullets, and never run past a few lines (compact one-liners for lists).
+_HEADLINE = {
+    "planned_production": "produce {v} {u}",
     "reorder_quantity": "reorder {v} {u}",
-    "lead_time_days": "supplier lead time {v} {u}",
+    "safety_stock": "safety stock {v} {u}",
+    "on_hand": "{v} {u} on hand",
+    "net_requirement": "net requirement {v} {u}",
+    "lead_time_days": "lead time {v} {u}",
 }
+_LABEL = {
+    "net_requirement": "Net requirement",
+    "planned_production": "Planned production",
+    "on_hand": "On hand",
+    "scheduled_receipts": "Incoming",
+    "reorder_quantity": "Reorder",
+    "lead_time_days": "Supplier lead time",
+    "safety_stock": "Safety stock",
+}
+_PRIORITY = ["planned_production", "reorder_quantity", "safety_stock", "on_hand", "net_requirement",
+             "lead_time_days", "scheduled_receipts"]
+COMPACT_ABOVE = 2  # more entities than this -> one line each instead of headline + bullets
+
+
+def _headline_metric(items: list[Evidence]) -> Evidence:
+    by_metric = {e.metric: e for e in items}
+    return by_metric[next(m for m in _PRIORITY if m in by_metric)]
 
 
 class TemplateGenerator:
@@ -51,19 +70,27 @@ class TemplateGenerator:
         groups: dict[tuple, list[Evidence]] = {}
         for e in evidence:
             groups.setdefault((e.entity, e.cycle), []).append(e)
+        compact = len(groups) > COMPACT_ABOVE
 
         lines, claims = [], []
         for (entity, cycle), items in groups.items():
-            parts, extra = [], ""
-            for e in items:
-                claims.append(Claim(e.metric, e.entity, e.cycle, e.value, e.unit, e.record_id))
-                if e.metric == "capacity_shortfall":
-                    planned = next(x for x in items if x.metric == "planned_production")
-                    extra = (f" Capacity exception: the batch-rounded requirement exceeds cycle capacity "
-                             f"by {fmt(e.value)} {e.unit}, so planned production is capped at "
-                             f"{fmt(planned.value)} {planned.unit}.")
-                else:
-                    parts.append(_PHRASES[e.metric].format(v=fmt(e.value), u=e.unit))
+            claims += [Claim(e.metric, e.entity, e.cycle, e.value, e.unit, e.record_id) for e in items]
             rec_ids = ", ".join(dict.fromkeys(e.record_id for e in items))
-            lines.append(f"{entity} ({cycle}): {', '.join(parts)}.{extra} [{rec_ids}]")
+            head = _headline_metric(items)
+            headline = _HEADLINE[head.metric].format(v=fmt(head.value), u=head.unit)
+            shortfall = next((e for e in items if e.metric == "capacity_shortfall"), None)
+            planned = next((e for e in items if e.metric == "planned_production"), None)
+            rest = [e for e in items if e is not head and e.metric != "capacity_shortfall"]
+            warn = (f"Capacity exception: requirement exceeds cycle capacity by {fmt(shortfall.value)} "
+                    f"{shortfall.unit}, so production is capped at {fmt(planned.value)} {planned.unit}."
+                    if shortfall and planned else "")
+
+            if compact:
+                extra = "".join(f"; {_LABEL[e.metric].lower()} {fmt(e.value)} {e.unit}" for e in rest)
+                lines.append(f"- **{entity}** ({cycle}): {headline}{extra} [{rec_ids}]" + (f"  \n  {warn}" if warn else ""))
+            else:
+                lines.append(f"**{entity} ({cycle}): {headline}** [{rec_ids}]")
+                lines += [f"- {_LABEL[e.metric]}: {fmt(e.value)} {e.unit}" for e in rest]
+                if warn:
+                    lines.append(f"- {warn}")
         return GeneratedAnswer("\n".join(lines), claims)
