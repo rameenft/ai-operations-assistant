@@ -21,7 +21,7 @@ flowchart TB
     end
 
     subgraph ING["Ingestion"]
-        I1["Fivetran"]
+        I1["Windsor.ai"]
         I2["Scheduled Sheets load"]
         I3["Snowpipe"]
     end

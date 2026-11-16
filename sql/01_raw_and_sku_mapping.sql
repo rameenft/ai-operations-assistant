@@ -12,7 +12,7 @@ CREATE SCHEMA IF NOT EXISTS curated;
 CREATE SCHEMA IF NOT EXISTS ops;
 
 -- Immutable raw landing: append-only, loosely typed, one row per source record.
--- Fivetran (Shopify), scheduled Google Sheets loads (hospital B2B) and Snowpipe (S3 retailer
+-- Windsor.ai (Shopify), scheduled Google Sheets loads (hospital B2B) and Snowpipe (S3 retailer
 -- files) all land in the same shape. Keys and quantities are nullable ON PURPOSE: a malformed
 -- record must land so that it can be seen, counted and fixed, not vanish in a failed load.
 CREATE TABLE IF NOT EXISTS raw.orders_landing (

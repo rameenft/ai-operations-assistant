@@ -29,7 +29,7 @@ That boundary is the core design decision: in an operations setting a fluent wro
 
 | Stage | Implementation and engineering controls |
 |---|---|
-| **Ingest** | Shopify orders/cancellations via Fivetran; hospital B2B orders via scheduled Google Sheets ingestion; retailer/vendor files via S3 + Snowpipe. Land immutable raw records with source IDs, ingestion time and batch IDs. |
+| **Ingest** | Shopify orders/cancellations via Windsor.ai; hospital B2B orders via scheduled Google Sheets ingestion; retailer/vendor files via S3 + Snowpipe. Land immutable raw records with source IDs, ingestion time and batch IDs. |
 | **Standardize** | `LEFT JOIN` source product identifiers to the canonical SKU map; normalize units; deduplicate by source order/line ID; **classify every row as valid or rejected with a reason**, and quarantine unmapped SKUs and malformed records instead of dropping them (see [error handling](#error-handling-for-unmapped-skus-and-malformed-records)). |
 | **Process changes** | Snowflake Streams identify changed rows; Tasks run idempotent `MERGE` updates for cancellations, returns and corrected orders; alert on failed jobs and reconcile record counts. |
 | **Calculate** | Dynamic Tables refresh curated inventory and replenishment views at defined freshness targets; demand forecasts, BOM, batch sizes, capacity and lead times feed deterministic SQL. |
@@ -87,7 +87,7 @@ material reorder               = max(0, planned production × BOM usage + materi
 
 ```mermaid
 flowchart TD
-    SRC["<b>Source systems</b><br/>Shopify / Fivetran · Google Sheets · S3 / Snowpipe"]
+    SRC["<b>Source systems</b><br/>Shopify / Windsor.ai · Google Sheets · S3 / Snowpipe"]
     SNOW["<b>Snowflake data platform</b><br/>Raw → classify (LEFT JOIN SKU map) → valid: Streams + Tasks / MERGE → Dynamic Tables / curated views · rejected: quarantine"]
     BOT["<b>Custom Cortex chatbot</b><br/>Streamlit → scope + RBAC → allowlisted SQL → LLM → deterministic validation"]
     DASH["<b>Fallback dashboard</b><br/>daily validated snapshot + timestamp"]
@@ -117,7 +117,7 @@ flowchart TB
     end
 
     subgraph ING["Ingestion"]
-        I1["Fivetran"]
+        I1["Windsor.ai"]
         I2["Scheduled Sheets load"]
         I3["Snowpipe"]
     end
@@ -266,7 +266,7 @@ streamlit run app/streamlit_app.py
 | Component | Production (Snowflake) | This prototype |
 |---|---|---|
 | Storage and compute | Snowflake: Streams, Tasks, Dynamic Tables, role-based views | `sqlite` in memory; SQL in `sql/` is illustrative only |
-| Ingestion | Fivetran, Google Sheets, Snowpipe | Synthetic CSVs in `data/synthetic/` |
+| Ingestion | Windsor.ai, Google Sheets, Snowpipe | Synthetic CSVs in `data/synthetic/` |
 | Planning calculations | SQL views | Same logic in Python ([`planning.py`](src/zaar_assistant/planning.py)) |
 | Tool selection / answer text | Cortex LLM | Rule-based router + template generator (the validator treats any generator as untrusted) |
 | UI | Streamlit in Snowflake | Local Streamlit app (written for this repo; not part of the automated tests) |
