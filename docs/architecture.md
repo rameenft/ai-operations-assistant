@@ -13,11 +13,17 @@ Four views of the same system, from the outside in. All figures are for the desi
 
 ```mermaid
 flowchart TB
-    subgraph SRC["Sources and ingestion"]
-        S1["Shopify orders<br/>via Fivetran"]
-        S2["Hospital B2B orders<br/>Google Sheets, scheduled load"]
-        S3["Retailer / vendor files<br/>S3 via Snowpipe"]
+    subgraph SRC["Source systems"]
+        S1["Shopify<br/>orders · cancellations"]
+        S2["Hospital B2B orders<br/>Google Sheets"]
+        S3["Retailer / vendor files<br/>S3 bucket"]
         S4["Planning inputs<br/>forecast · BOM · batch sizes<br/>capacity · lead times"]
+    end
+
+    subgraph ING["Ingestion"]
+        I1["Fivetran"]
+        I2["Scheduled Sheets load"]
+        I3["Snowpipe"]
     end
 
     subgraph SF["Snowflake data platform"]
@@ -49,9 +55,9 @@ flowchart TB
     OPS["Alerts and logs<br/>job failures · reject rate<br/>unmapped SKUs · freshness · retries"]
     EVAL["Evaluation loop<br/>automated tests · manual reconciliation<br/>manager feedback · regression suite"]
 
-    S1 --> RAW
-    S2 --> RAW
-    S3 --> RAW
+    S1 --> I1 --> RAW
+    S2 --> I2 --> RAW
+    S3 --> I3 --> RAW
     S4 --> CUR
     SERVE -- "SELECT only<br/>(role-scoped)" --> REG
     SERVE -- "daily snapshot" --> DASH
