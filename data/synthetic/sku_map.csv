@@ -1,0 +1,7 @@
+source_system,source_sku,canonical_sku,is_active
+shopify,SHP-SCRTOP-BLU-M,SCR-TOP-001,1
+shopify,SHP-SCRPNT-BLU-M,SCR-PNT-001,1
+shopify,SHP-LABCOT-WHT-L,LAB-COT-001,1
+gsheets_b2b,SCR-TOP-001,SCR-TOP-001,1
+s3_retail,RET-SCRTOP,SCR-TOP-001,1
+s3_retail,RET-SCRPNT,SCR-PNT-001,1

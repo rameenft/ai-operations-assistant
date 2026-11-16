@@ -13,28 +13,24 @@ Four views of the same system, from the outside in. All figures are for the desi
 
 ```mermaid
 flowchart TB
-    subgraph SRC["Source systems"]
-        S1["Shopify<br/>orders · cancellations"]
-        S2["Hospital B2B orders<br/>Google Sheets"]
-        S3["Retailer / vendor files<br/>S3 bucket"]
-        S4["Planning inputs<br/>demand forecast · BOM<br/>batch sizes · capacity · lead times"]
-    end
-
-    subgraph ING["Ingestion"]
-        I1["Fivetran"]
-        I2["Scheduled Sheets load"]
-        I3["Snowpipe"]
+    subgraph SRC["Sources and ingestion"]
+        S1["Shopify orders<br/>via Fivetran"]
+        S2["Hospital B2B orders<br/>Google Sheets, scheduled load"]
+        S3["Retailer / vendor files<br/>S3 via Snowpipe"]
+        S4["Planning inputs<br/>forecast · BOM · batch sizes<br/>capacity · lead times"]
     end
 
     subgraph SF["Snowflake data platform"]
-        RAW[("RAW schema<br/>immutable landing<br/>source IDs · ingested_at · batch_id")]
-        MAP["SKU standardization<br/>canonical SKU map · dedup<br/>unit normalization"]
-        QUA[("QUARANTINE<br/>unmapped SKUs<br/>malformed records")]
-        CHG["Change processing<br/>Streams + Tasks<br/>idempotent MERGE"]
-        CUR[("CURATED schema<br/>Dynamic Tables<br/>inventory · replenishment")]
-        SERVE[("SERVE schema<br/>read-only views<br/>production_plan · material_reorder")]
-        RAW --> MAP --> CHG --> CUR --> SERVE
-        MAP -. rejects .-> QUA
+        RAW[("RAW<br/>immutable landing<br/>accepts everything")]
+        CLS["Classify<br/>LEFT JOIN SKU map + validity rules<br/>every row: valid or a reject reason"]
+        QUA[("QUARANTINE<br/>error table: reason + status<br/>unmapped SKUs · malformed rows")]
+        CHG["Change processing<br/>Streams + Tasks · MERGE<br/>valid rows only, one transaction"]
+        CUR[("CURATED<br/>Dynamic Tables")]
+        SERVE[("SERVE<br/>read-only views")]
+        RAW --> CLS
+        CLS -- valid --> CHG --> CUR --> SERVE
+        CLS -- rejected --> QUA
+        QUA -. "fix SKU map, replay as new batch" .-> RAW
     end
 
     subgraph APP["Assistant application"]
@@ -50,26 +46,25 @@ flowchart TB
     end
 
     DASH["Fallback dashboard<br/>daily validated snapshot<br/>+ as-of timestamp"]
+    OPS["Alerts and logs<br/>job failures · reject rate<br/>unmapped SKUs · freshness · retries"]
+    EVAL["Evaluation loop<br/>automated tests · manual reconciliation<br/>manager feedback · regression suite"]
 
-    subgraph OBS["Operations and quality"]
-        OPS["Alerts and logs<br/>job failures · freshness SLA<br/>retries · escalation"]
-        EVAL["Evaluation loop<br/>automated tests · manual reconciliation<br/>manager feedback · regression suite"]
-    end
-
-    S1 --> I1 --> RAW
-    S2 --> I2 --> RAW
-    S3 --> I3 --> RAW
+    S1 --> RAW
+    S2 --> RAW
+    S3 --> RAW
     S4 --> CUR
     SERVE -- "SELECT only<br/>(role-scoped)" --> REG
     SERVE -- "daily snapshot" --> DASH
-    ANS --> OPS
+    QUA --> OPS
     CHG --> OPS
+    ANS --> OPS
     ANS --> EVAL
     EVAL -. "new regression cases<br/>logic fixes" .-> CUR
 ```
 
 Reading the diagram:
 
+- **Bad data is visible, never dropped.** RAW accepts every record. The classify step uses a `LEFT JOIN` to the SKU map so unmapped rows survive with a reason instead of vanishing, and rejected rows wait in QUARANTINE until the SKU map is fixed (then replayed) or the source is corrected. Alerts fire on reject rate and on unmapped SKUs left open too long.
 - **Everything the user sees is traceable to a SERVE-layer row.** The LLM never sees the raw or curated layers and never writes SQL; it only picks one of three tools.
 - **The fallback dashboard hangs off SERVE, not off the chatbot.** If the assistant is down, blocked by validation, or the data is stale, managers still have the last validated snapshot.
 - **The evaluation loop feeds back into the pipeline**, not just the chatbot. The V4 fix (batch size and capacity constraints) was a change to the planning SQL found through manager feedback.
@@ -153,9 +148,11 @@ erDiagram
         timestamp ingested_at
     }
     ORDERS_QUARANTINE {
-        string source_order_id
+        int landing_id FK
         string reject_reason
+        string status
         timestamp quarantined_at
+        timestamp resolved_at
     }
     ORDER_LINES {
         string source_order_id PK
@@ -226,7 +223,7 @@ erDiagram
         timestamp source_ts
     }
 
-    ORDERS_LANDING ||--o{ ORDERS_QUARANTINE : "unmapped or malformed"
+    ORDERS_LANDING ||--o| ORDERS_QUARANTINE : "rejected rows only"
     ORDERS_LANDING }o--|| SKU_MAP : "mapped via"
     SKU_MAP }o--|| SKU : "resolves to"
     ORDERS_LANDING ||--o{ ORDER_LINES : "MERGE via stream"

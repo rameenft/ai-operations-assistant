@@ -30,10 +30,41 @@ That boundary is the core design decision: in an operations setting a fluent wro
 | Stage | Implementation and engineering controls |
 |---|---|
 | **Ingest** | Shopify orders/cancellations via Fivetran; hospital B2B orders via scheduled Google Sheets ingestion; retailer/vendor files via S3 + Snowpipe. Land immutable raw records with source IDs, ingestion time and batch IDs. |
-| **Standardize** | Map source product identifiers to canonical SKUs; normalize units; deduplicate by source order/line ID; quarantine unmapped SKUs and malformed records. |
+| **Standardize** | `LEFT JOIN` source product identifiers to the canonical SKU map; normalize units; deduplicate by source order/line ID; **classify every row as valid or rejected with a reason**, and quarantine unmapped SKUs and malformed records instead of dropping them (see [error handling](#error-handling-for-unmapped-skus-and-malformed-records)). |
 | **Process changes** | Snowflake Streams identify changed rows; Tasks run idempotent `MERGE` updates for cancellations, returns and corrected orders; alert on failed jobs and reconcile record counts. |
 | **Calculate** | Dynamic Tables refresh curated inventory and replenishment views at defined freshness targets; demand forecasts, BOM, batch sizes, capacity and lead times feed deterministic SQL. |
 | **Serve** | Read-only production and supply views expose quantities, SKU/material, cycle, units, record ID, source version and calculation timestamp. A daily validated snapshot feeds an independent fallback dashboard. |
+
+### Error handling for unmapped SKUs and malformed records
+
+The principle: **RAW accepts everything, and every landed row ends up in exactly one place.** Nothing is rejected at the door and nothing is silently dropped.
+
+```
+landed row ──► classify (LEFT JOIN sku_map + validity rules)
+                 ├─ valid     ──► MERGE into order_lines ──► curated / serve
+                 └─ rejected  ──► QUARANTINE (reason, status OPEN) ──► alert
+                                     └─ fix the SKU map ──► replay as a new batch ──► RESOLVED
+
+landing rows  =  applied  +  duplicates  +  quarantined        (reconciled on every run)
+```
+
+| Reject reason | Example | Recoverable by | 
+|---|---|---|
+| `UNMAPPED_SKU` | A new Shopify variant that is not in the SKU map yet | Add the mapping row, then the replay task re-lands it |
+| `MISSING_KEY` / `MISSING_SKU` | Blank order ID or SKU in a Sheets row | Correct the source and re-ingest |
+| `NULL_QUANTITY` / `NEGATIVE_QUANTITY` | Empty or `-5` quantity | Correct the source and re-ingest |
+| `UNKNOWN_EVENT_TYPE` | A `refund` event the pipeline does not model | Decide the business rule, then extend the model |
+| `MISSING_TIMESTAMP` | Order with no event time | Correct the source and re-ingest |
+
+Design choices worth calling out:
+
+- **`LEFT JOIN`, not `INNER JOIN`.** An inner join to the SKU map silently drops unmapped rows, which are exactly the rows that need attention. With a left join they survive with a `NULL` canonical SKU and get a reason.
+- **The left join has a trap, and it is checked.** If the SKU map contains a duplicated key, the join fans out and multiplies rows. Snowflake does not enforce primary keys, so the pipeline checks map uniqueness and that classified rows equal landed rows.
+- **One transaction.** Quarantine inserts and the `MERGE` run together in a single procedure reading the stream. Two separate tasks on one stream would be wrong: the first statement advances the stream offset and the second would see nothing.
+- **Replay keeps RAW immutable.** A fixed row is re-landed as a new `REPLAY-...` batch rather than edited in place.
+- **Alerts:** reject rate above a threshold (a sudden jump usually means a broken upstream export), and unmapped SKUs left open longer than 48 hours. Thresholds are illustrative.
+
+Runnable version with tests: [`ingest.py`](src/zaar_assistant/ingest.py), [`test_ingest.py`](tests/test_ingest.py), sample bad rows in [`orders_landing.csv`](data/synthetic/orders_landing.csv). Snowflake version: [`sql/01`](sql/01_raw_and_sku_mapping.sql) and [`sql/02`](sql/02_streams_tasks_merge.sql).
 
 Code: [`sql/01_raw_and_sku_mapping.sql`](sql/01_raw_and_sku_mapping.sql) · [`02_streams_tasks_merge.sql`](sql/02_streams_tasks_merge.sql) · [`03_dynamic_tables.sql`](sql/03_dynamic_tables.sql) · [`04_planning_views.sql`](sql/04_planning_views.sql)
 
@@ -57,7 +88,7 @@ material reorder               = max(0, planned production × BOM usage + materi
 ```mermaid
 flowchart TD
     SRC["<b>Source systems</b><br/>Shopify / Fivetran · Google Sheets · S3 / Snowpipe"]
-    SNOW["<b>Snowflake data platform</b><br/>Raw → SKU mapping / DQ → Streams + Tasks / MERGE → Dynamic Tables / curated views"]
+    SNOW["<b>Snowflake data platform</b><br/>Raw → classify (LEFT JOIN SKU map) → valid: Streams + Tasks / MERGE → Dynamic Tables / curated views · rejected: quarantine"]
     BOT["<b>Custom Cortex chatbot</b><br/>Streamlit → scope + RBAC → allowlisted SQL → LLM → deterministic validation"]
     DASH["<b>Fallback dashboard</b><br/>daily validated snapshot + timestamp"]
     CTRL["<b>Answer control</b><br/>validated answer · partial answer · refusal · retry · safe failure"]
@@ -78,28 +109,24 @@ Solid arrows are the primary data/answer flow. The dashboard is a **parallel fal
 
 ```mermaid
 flowchart TB
-    subgraph SRC["Source systems"]
-        S1["Shopify<br/>orders · cancellations"]
-        S2["Hospital B2B orders<br/>Google Sheets"]
-        S3["Retailer / vendor files<br/>S3 bucket"]
-        S4["Planning inputs<br/>demand forecast · BOM<br/>batch sizes · capacity · lead times"]
-    end
-
-    subgraph ING["Ingestion"]
-        I1["Fivetran"]
-        I2["Scheduled Sheets load"]
-        I3["Snowpipe"]
+    subgraph SRC["Sources and ingestion"]
+        S1["Shopify orders<br/>via Fivetran"]
+        S2["Hospital B2B orders<br/>Google Sheets, scheduled load"]
+        S3["Retailer / vendor files<br/>S3 via Snowpipe"]
+        S4["Planning inputs<br/>forecast · BOM · batch sizes<br/>capacity · lead times"]
     end
 
     subgraph SF["Snowflake data platform"]
-        RAW[("RAW schema<br/>immutable landing<br/>source IDs · ingested_at · batch_id")]
-        MAP["SKU standardization<br/>canonical SKU map · dedup<br/>unit normalization"]
-        QUA[("QUARANTINE<br/>unmapped SKUs<br/>malformed records")]
-        CHG["Change processing<br/>Streams + Tasks<br/>idempotent MERGE"]
-        CUR[("CURATED schema<br/>Dynamic Tables<br/>inventory · replenishment")]
-        SERVE[("SERVE schema<br/>read-only views<br/>production_plan · material_reorder")]
-        RAW --> MAP --> CHG --> CUR --> SERVE
-        MAP -. rejects .-> QUA
+        RAW[("RAW<br/>immutable landing<br/>accepts everything")]
+        CLS["Classify<br/>LEFT JOIN SKU map + validity rules<br/>every row: valid or a reject reason"]
+        QUA[("QUARANTINE<br/>error table: reason + status<br/>unmapped SKUs · malformed rows")]
+        CHG["Change processing<br/>Streams + Tasks · MERGE<br/>valid rows only, one transaction"]
+        CUR[("CURATED<br/>Dynamic Tables")]
+        SERVE[("SERVE<br/>read-only views")]
+        RAW --> CLS
+        CLS -- valid --> CHG --> CUR --> SERVE
+        CLS -- rejected --> QUA
+        QUA -. "fix SKU map, replay as new batch" .-> RAW
     end
 
     subgraph APP["Assistant application"]
@@ -115,20 +142,18 @@ flowchart TB
     end
 
     DASH["Fallback dashboard<br/>daily validated snapshot<br/>+ as-of timestamp"]
+    OPS["Alerts and logs<br/>job failures · reject rate<br/>unmapped SKUs · freshness · retries"]
+    EVAL["Evaluation loop<br/>automated tests · manual reconciliation<br/>manager feedback · regression suite"]
 
-    subgraph OBS["Operations and quality"]
-        OPS["Alerts and logs<br/>job failures · freshness SLA<br/>retries · escalation"]
-        EVAL["Evaluation loop<br/>automated tests · manual reconciliation<br/>manager feedback · regression suite"]
-    end
-
-    S1 --> I1 --> RAW
-    S2 --> I2 --> RAW
-    S3 --> I3 --> RAW
+    S1 --> RAW
+    S2 --> RAW
+    S3 --> RAW
     S4 --> CUR
     SERVE -- "SELECT only<br/>(role-scoped)" --> REG
     SERVE -- "daily snapshot" --> DASH
-    ANS --> OPS
+    QUA --> OPS
     CHG --> OPS
+    ANS --> OPS
     ANS --> EVAL
     EVAL -. "new regression cases<br/>logic fixes" .-> CUR
 ```
@@ -153,6 +178,7 @@ A correct number attached to the wrong SKU or period is still a wrong answer; th
 
 | Condition | Safe behavior | Where |
 |---|---|---|
+| Unmapped SKU or malformed record upstream | Land it, quarantine it with a reason, keep it out of planning data, alert on reject rate and age; replay after the map is fixed | `sql/01`, `sql/02`, `ingest.py` |
 | Bad/missing SKU or unauthorized scope | Ask for clarification or refuse; no cross-role data leakage | `router.py`, `tools.py` |
 | Query timeout / transient tool error | Bounded retry with backoff (2 attempts), then safe failure; never invent values | `controls.with_retry` |
 | Validation mismatch / validator exception | Block the answer; one controlled regeneration if evidence is valid, otherwise fail closed and log an alert | `answer.py` |
@@ -247,7 +273,7 @@ README.md
 docs/system_design.pdf          original design document
 sql/                            Snowflake-dialect pipeline + planning views (illustrative)
 data/synthetic/                 made-up forecast, inventory, BOM, batch rules, materials
-src/zaar_assistant/             planning · tools (allowlist + RBAC) · router · generator · validator · controls · answer
+src/zaar_assistant/             ingest (classify · quarantine · replay) · planning · tools (allowlist + RBAC) · router · generator · validator · controls · answer
 app/streamlit_app.py            chat UI
 eval/                           questions.yaml · run_eval.py · failure_injection.py · manual review template
 tests/                          pytest suite

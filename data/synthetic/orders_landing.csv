@@ -1,0 +1,14 @@
+landing_id,source_system,source_order_id,source_line_id,source_sku,quantity,event_type,event_ts,batch_id
+1,shopify,1001,1,SHP-SCRTOP-BLU-M,10,order,2026-11-14T08:00:00,B001
+2,shopify,1001,1,SHP-SCRTOP-BLU-M,10,order,2026-11-14T08:00:00,B001
+3,shopify,1001,2,SHP-SCRPNT-BLU-M,5,order,2026-11-14T08:00:00,B001
+4,gsheets_b2b,H-77,1,SCR-TOP-001,100,order,2026-11-14T09:30:00,B002
+5,shopify,1002,1,SHP-LABCOT-WHT-L,2,order,2026-11-14T10:00:00,B002
+6,shopify,1001,1,SHP-SCRTOP-BLU-M,3,cancellation,2026-11-14T12:00:00,B003
+7,shopify,1003,1,SHP-NEWITEM-XYZ,4,order,2026-11-14T13:00:00,B003
+8,s3_retail,R-9,1,RET-SCRTOP,-5,order,2026-11-14T14:00:00,B004
+9,s3_retail,R-9,2,RET-SCRPNT,,order,2026-11-14T14:00:00,B004
+10,shopify,1004,1,SHP-SCRTOP-BLU-M,2,refund,2026-11-14T15:00:00,B004
+11,shopify,1005,1,SHP-SCRTOP-BLU-M,1,order,,B004
+12,shopify,,1,SHP-SCRTOP-BLU-M,1,order,2026-11-14T09:00:00,B004
+13,shopify,1006,1,,1,order,2026-11-14T16:00:00,B004
