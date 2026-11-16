@@ -115,7 +115,7 @@ END;
 $$;
 
 CREATE OR REPLACE TASK curated.merge_order_changes
-    WAREHOUSE = ZAAR_PLANNING_WH
+    WAREHOUSE = PLANNING_WH
     SCHEDULE  = '15 MINUTE'
     WHEN SYSTEM$STREAM_HAS_DATA('raw.orders_landing_stream')
 AS
@@ -163,7 +163,7 @@ $$;
 
 -- Run after an analyst adds the missing mapping rows (or schedule it hourly).
 CREATE OR REPLACE TASK curated.replay_quarantine
-    WAREHOUSE = ZAAR_PLANNING_WH
+    WAREHOUSE = PLANNING_WH
     SCHEDULE  = '60 MINUTE'
 AS
     CALL curated.replay_unmapped_skus();
@@ -173,7 +173,7 @@ AS
 -- integration and shown in the operations view; a FAIL also blocks the assistant via freshness.
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE TASK curated.run_pipeline_checks
-    WAREHOUSE = ZAAR_PLANNING_WH
+    WAREHOUSE = PLANNING_WH
     AFTER curated.merge_order_changes
 AS
 INSERT INTO ops.pipeline_checks (check_name, expected, actual, status)

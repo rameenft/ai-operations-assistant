@@ -16,9 +16,9 @@ sys.path.insert(0, str(HERE.parent / "src"))
 sys.path.insert(0, str(HERE))
 
 from failure_injection import NOW, run_accuracy_scenarios, run_reliability_scenarios  # noqa: E402
-from zaar_assistant.answer import answer_question  # noqa: E402
-from zaar_assistant.db import build_database  # noqa: E402
-from zaar_assistant.generator import fmt  # noqa: E402
+from ops_assistant.answer import answer_question  # noqa: E402
+from ops_assistant.db import build_database  # noqa: E402
+from ops_assistant.generator import fmt  # noqa: E402
 
 GATES = [
     ("Numerical & citation accuracy", "claim-to-record match (metric+SKU+cycle+unit+record ID); tampered answers blocked"),

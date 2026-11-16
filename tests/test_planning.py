@@ -1,4 +1,4 @@
-from zaar_assistant.planning import net_requirement, plan_material, plan_production, round_up_to_batch
+from ops_assistant.planning import net_requirement, plan_material, plan_production, round_up_to_batch
 
 
 def test_worked_example_370_rounds_to_400():

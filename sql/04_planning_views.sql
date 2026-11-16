@@ -1,7 +1,7 @@
 -- =============================================================================
 -- 04  DETERMINISTIC PLANNING CALCULATIONS (SERVE LAYER)   (illustrative)
 -- The numbers the chatbot is allowed to quote come ONLY from these views.
--- Python mirror of this logic: src/zaar_assistant/planning.py
+-- Python mirror of this logic: src/ops_assistant/planning.py
 -- =============================================================================
 
 -- Net finished-goods requirement, executable production, capacity exception.

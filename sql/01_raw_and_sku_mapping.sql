@@ -1,6 +1,6 @@
 -- =============================================================================
 -- 01  RAW LANDING, SKU STANDARDIZATION AND ERROR HANDLING   (Snowflake, illustrative)
--- Not executed by the local prototype (see src/zaar_assistant/ingest.py for a runnable mirror).
+-- Not executed by the local prototype (see src/ops_assistant/ingest.py for a runnable mirror).
 --
 -- Design rule: RAW accepts everything; nothing is rejected at the door and nothing is dropped.
 -- Every landed row is classified exactly once: VALID, or rejected with an explicit reason.

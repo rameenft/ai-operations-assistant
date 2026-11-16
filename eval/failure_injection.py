@@ -16,10 +16,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from zaar_assistant.answer import ANSWER, REFUSE, SAFE_FAILURE, answer_question  # noqa: E402
-from zaar_assistant.db import build_database, refresh_curated  # noqa: E402
-from zaar_assistant.generator import GeneratedAnswer, TemplateGenerator, fmt  # noqa: E402
-from zaar_assistant.tools import TransientToolError, run_tool  # noqa: E402
+from ops_assistant.answer import ANSWER, REFUSE, SAFE_FAILURE, answer_question  # noqa: E402
+from ops_assistant.db import build_database, refresh_curated  # noqa: E402
+from ops_assistant.generator import GeneratedAnswer, TemplateGenerator, fmt  # noqa: E402
+from ops_assistant.tools import TransientToolError, run_tool  # noqa: E402
 
 NOW = datetime(2026, 11, 15, 9, 0, 0)  # 4h after the synthetic source timestamps
 PM, SM = "production_manager", "supply_manager"

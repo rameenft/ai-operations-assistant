@@ -1,9 +1,9 @@
 from dataclasses import replace
 
-from zaar_assistant.db import build_database
-from zaar_assistant.generator import GeneratedAnswer, TemplateGenerator
-from zaar_assistant.tools import run_tool
-from zaar_assistant.validator import validate
+from ops_assistant.db import build_database
+from ops_assistant.generator import GeneratedAnswer, TemplateGenerator
+from ops_assistant.tools import run_tool
+from ops_assistant.validator import validate
 
 
 def _evidence(sku="SCR-TOP-001"):

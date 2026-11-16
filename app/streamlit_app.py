@@ -1,7 +1,7 @@
 """Minimal chat UI. Run:  streamlit run app/streamlit_app.py   (pip install streamlit)
 
 Mirrors the production flow: the UI collects the question + authenticated role; everything else
-(scope check, allowlisted tools, RBAC, validation, fail-closed) happens in zaar_assistant.
+(scope check, allowlisted tools, RBAC, validation, fail-closed) happens in ops_assistant.
 """
 import sys
 from datetime import datetime, timedelta
@@ -10,11 +10,11 @@ from pathlib import Path
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from zaar_assistant.answer import answer_question  # noqa: E402
-from zaar_assistant.db import build_database  # noqa: E402
+from ops_assistant.answer import answer_question  # noqa: E402
+from ops_assistant.db import build_database  # noqa: E402
 
-st.set_page_config(page_title="ZAAR Operations Assistant (prototype)")
-st.title("ZAAR | AI Operations Assistant")
+st.set_page_config(page_title="Operations Assistant (prototype)")
+st.title("AI Operations Assistant")
 st.caption("Prototype on synthetic data. Answers are retrieved from approved results and verified before display.")
 
 

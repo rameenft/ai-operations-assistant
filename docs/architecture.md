@@ -11,7 +11,7 @@ Four views of the same system, from the outside in. All figures are for the desi
 
 ## 1. Component architecture
 
-![System architecture: source systems and ingestion feed a Snowflake pipeline (RAW, classify, change processing, curated, serve) with a quarantine error table; the assistant application reads the serve layer through allowlisted tools; alerts and evaluation run across everything.](images/zaar_system_architecture.png)
+![System architecture: source systems and ingestion feed a Snowflake pipeline (RAW, classify, change processing, curated, serve) with a quarantine error table; the assistant application reads the serve layer through allowlisted tools; alerts and evaluation run across everything.](images/system_architecture.png)
 
 Reading the diagram:
 
@@ -212,4 +212,4 @@ Every SERVE row carries `record_id` and `source_ts`. Those two columns are what 
 | `production_manager` | `get_production_plan`, `get_inventory_status` | Finished goods |
 | `supply_manager` | `get_material_reorder` | Materials and suppliers |
 
-The role table is enforced in code in [`tools.py`](../src/zaar_assistant/tools.py) (`ROLE_PERMISSIONS`).
+The role table is enforced in code in [`tools.py`](../src/ops_assistant/tools.py) (`ROLE_PERMISSIONS`).

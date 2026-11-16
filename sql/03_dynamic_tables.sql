@@ -6,7 +6,7 @@
 
 CREATE OR REPLACE DYNAMIC TABLE curated.finished_goods_position
     TARGET_LAG = '1 hour'
-    WAREHOUSE  = ZAAR_PLANNING_WH
+    WAREHOUSE  = PLANNING_WH
 AS
 SELECT
     i.sku,
@@ -23,7 +23,7 @@ JOIN raw.demand_forecast    f USING (sku, cycle);
 
 CREATE OR REPLACE DYNAMIC TABLE curated.material_position
     TARGET_LAG = '1 hour'
-    WAREHOUSE  = ZAAR_PLANNING_WH
+    WAREHOUSE  = PLANNING_WH
 AS
 SELECT
     m.material, m.unit, m.on_hand, m.scheduled_receipts, m.safety_stock,
@@ -35,7 +35,7 @@ FROM raw.material_inventory m;
 -- It is NOT a downstream output of the chatbot: if the chatbot is down, this still works.
 CREATE OR REPLACE DYNAMIC TABLE serve.daily_validated_snapshot
     TARGET_LAG = '1 day'
-    WAREHOUSE  = ZAAR_PLANNING_WH
+    WAREHOUSE  = PLANNING_WH
 AS
 SELECT CURRENT_TIMESTAMP() AS snapshot_ts, p.*
 FROM serve.production_plan p

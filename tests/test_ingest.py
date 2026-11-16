@@ -2,7 +2,7 @@ import sqlite3
 
 import pytest
 
-from zaar_assistant.ingest import (load_ingest_tables, quarantine_summary, reconcile, replay_unmapped_skus,
+from ops_assistant.ingest import (load_ingest_tables, quarantine_summary, reconcile, replay_unmapped_skus,
                                    run_ingest, sku_map_duplicates)
 
 

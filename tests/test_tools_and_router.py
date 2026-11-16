@@ -1,8 +1,8 @@
 import pytest
 
-from zaar_assistant.db import build_database, load_catalog
-from zaar_assistant.router import route
-from zaar_assistant.tools import AuthorizationError, ParameterError, run_tool
+from ops_assistant.db import build_database, load_catalog
+from ops_assistant.router import route
+from ops_assistant.tools import AuthorizationError, ParameterError, run_tool
 
 
 @pytest.fixture()

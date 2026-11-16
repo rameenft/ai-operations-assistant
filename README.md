@@ -22,7 +22,7 @@ That boundary is the core design decision: in an operations setting a fluent wro
 
 ## 2. System architecture
 
-![System architecture: source systems and ingestion feed a Snowflake pipeline (RAW, classify, change processing, curated, serve) with a quarantine error table; the assistant application reads the serve layer through allowlisted tools; alerts and evaluation run across everything.](docs/images/zaar_system_architecture.png)
+![System architecture: source systems and ingestion feed a Snowflake pipeline (RAW, classify, change processing, curated, serve) with a quarantine error table; the assistant application reads the serve layer through allowlisted tools; alerts and evaluation run across everything.](docs/images/system_architecture.png)
 
 The fallback dashboard is a **parallel path**, not a downstream chatbot output: if the chatbot is down or blocked, managers still have a validated snapshot. More views in [`docs/architecture.md`](docs/architecture.md): the **request lifecycle** (every point where a question can be refused, retried or blocked), the **data model** (entity-relationship diagram) and the **trust boundaries and role access** table.
 
@@ -65,7 +65,7 @@ Design choices worth calling out:
 - **Replay keeps RAW immutable.** A fixed row is re-landed as a new `REPLAY-...` batch rather than edited in place.
 - **Alerts:** reject rate above a threshold (a sudden jump usually means a broken upstream export), and unmapped SKUs left open longer than 48 hours. Thresholds are illustrative.
 
-Runnable version with tests: [`ingest.py`](src/zaar_assistant/ingest.py), [`test_ingest.py`](tests/test_ingest.py), sample bad rows in [`orders_landing.csv`](data/synthetic/orders_landing.csv). Snowflake version: [`sql/01`](sql/01_raw_and_sku_mapping.sql) and [`sql/02`](sql/02_streams_tasks_merge.sql).
+Runnable version with tests: [`ingest.py`](src/ops_assistant/ingest.py), [`test_ingest.py`](tests/test_ingest.py), sample bad rows in [`orders_landing.csv`](data/synthetic/orders_landing.csv). Snowflake version: [`sql/01`](sql/01_raw_and_sku_mapping.sql) and [`sql/02`](sql/02_streams_tasks_merge.sql).
 
 Code: [`sql/01_raw_and_sku_mapping.sql`](sql/01_raw_and_sku_mapping.sql) · [`02_streams_tasks_merge.sql`](sql/02_streams_tasks_merge.sql) · [`03_dynamic_tables.sql`](sql/03_dynamic_tables.sql) · [`04_planning_views.sql`](sql/04_planning_views.sql)
 
@@ -80,19 +80,19 @@ material reorder               = max(0, planned production × BOM usage + materi
                                  → rounded up to supplier pack size, at least the minimum order quantity
 ```
 
-**Worked example (synthetic):** 500 demand + 100 safety − 180 on hand − 50 incoming = **370** net units → rounded up to **400** with 100-unit batches. Implemented in [`planning.py`](src/zaar_assistant/planning.py) (Python mirror of the SQL) and pinned by a test in [`tests/test_planning.py`](tests/test_planning.py). This exact example is also the story of iteration V4 below.
+**Worked example (synthetic):** 500 demand + 100 safety − 180 on hand − 50 incoming = **370** net units → rounded up to **400** with 100-unit batches. Implemented in [`planning.py`](src/ops_assistant/planning.py) (Python mirror of the SQL) and pinned by a test in [`tests/test_planning.py`](tests/test_planning.py). This exact example is also the story of iteration V4 below.
 
 ## 5. Controlled retrieval and request-time controls
 
 Streamlit collects the question and the authenticated user context. The model **never gets arbitrary SQL execution rights**:
 
-- It can only select among **allowlisted, parameterized, read-only tools**: `get_production_plan`, `get_inventory_status`, `get_material_reorder` ([`tools.py`](src/zaar_assistant/tools.py)).
+- It can only select among **allowlisted, parameterized, read-only tools**: `get_production_plan`, `get_inventory_status`, `get_material_reorder` ([`tools.py`](src/ops_assistant/tools.py)).
 - The **server** validates parameters (known SKU / material / cycle) and enforces role-based access *before* touching data. A production manager asking a supply question is refused, with no data leaked.
 - Tools return **structured evidence**: metric, SKU/material, cycle, unit, record ID, source timestamp.
 
-**Before retrieval** ([`router.py`](src/zaar_assistant/router.py)): authenticate → authorize role and data domain → classify the request as fully in-scope / mixed / out-of-scope → normalize SKU and period → reject invalid parameters (including prompt-injection / raw-SQL attempts).
+**Before retrieval** ([`router.py`](src/ops_assistant/router.py)): authenticate → authorize role and data domain → classify the request as fully in-scope / mixed / out-of-scope → normalize SKU and period → reject invalid parameters (including prompt-injection / raw-SQL attempts).
 
-**After generation** ([`validator.py`](src/zaar_assistant/validator.py)): deterministic Python checks **each numerical claim against the exact metric + SKU/material + cycle + unit + source record**, not merely whether the number appears somewhere in the results. It also checks that mandatory qualifiers are present (e.g. a capacity exception can't be dropped). Only validated answers are displayed.
+**After generation** ([`validator.py`](src/ops_assistant/validator.py)): deterministic Python checks **each numerical claim against the exact metric + SKU/material + cycle + unit + source record**, not merely whether the number appears somewhere in the results. It also checks that mandatory qualifiers are present (e.g. a capacity exception can't be dropped). Only validated answers are displayed.
 
 A correct number attached to the wrong SKU or period is still a wrong answer; this is the failure mode the validator is designed around (see [`test_validator.py`](tests/test_validator.py)).
 
@@ -132,7 +132,7 @@ A: You don't have access to that data domain with your current role.
 
 Four iterations, each driven by a failure the previous version could not see:
 
-**V1: Automated source reconciliation.** Source-grounding from day one: every generated quantity had to match the retrieved Snowflake record on metric, SKU, cycle and unit; unsupported claims were blocked before display. Tests deliberately swapped SKUs, periods and units. → [`validator.py`](src/zaar_assistant/validator.py), the `swap_*` cases in [`eval/failure_injection.py`](eval/failure_injection.py)
+**V1: Automated source reconciliation.** Source-grounding from day one: every generated quantity had to match the retrieved Snowflake record on metric, SKU, cycle and unit; unsupported claims were blocked before display. Tests deliberately swapped SKUs, periods and units. → [`validator.py`](src/ops_assistant/validator.py), the `swap_*` cases in [`eval/failure_injection.py`](eval/failure_injection.py)
 
 **V2: Manual evaluation and error discovery.** Built a ~30-question evaluation set and compared answers by hand with the authoritative Snowflake tables. Manual review exposed problems that numerical matching alone missed: omitted qualifiers, incomplete responses, stale evidence. Automated checks were expanded and each finding became a regression case. → [`eval/questions.yaml`](eval/questions.yaml), [`eval/manual_review_template.csv`](eval/manual_review_template.csv)
 
@@ -173,7 +173,7 @@ README.md
 docs/system_design.pdf          original design document
 sql/                            Snowflake-dialect pipeline + planning views (illustrative)
 data/synthetic/                 made-up forecast, inventory, BOM, batch rules, materials
-src/zaar_assistant/             ingest (classify · quarantine · replay) · planning · tools (allowlist + RBAC) · router · generator · validator · controls · answer
+src/ops_assistant/             ingest (classify · quarantine · replay) · planning · tools (allowlist + RBAC) · router · generator · validator · controls · answer
 app/streamlit_app.py            chat UI
 eval/                           questions.yaml · run_eval.py · failure_injection.py · manual review template
 tests/                          pytest suite
