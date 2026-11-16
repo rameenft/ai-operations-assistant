@@ -52,6 +52,8 @@ material reorder               = max(0, planned production × BOM usage + materi
 
 ## 4. Architecture
 
+**At a glance**
+
 ```mermaid
 flowchart TD
     SRC["<b>Source systems</b><br/>Shopify / Fivetran · Google Sheets · S3 / Snowpipe"]
@@ -71,6 +73,72 @@ flowchart TD
 ```
 
 Solid arrows are the primary data/answer flow. The dashboard is a **parallel fallback**, not a downstream chatbot output: if the chatbot is down or blocked, managers still have a validated snapshot.
+
+**Detailed component architecture**: sources, ingestion, the three Snowflake schemas, the assistant's internal stages, and where the fallback dashboard and evaluation loop attach.
+
+```mermaid
+flowchart LR
+    subgraph SRC["Source systems"]
+        direction TB
+        S1["Shopify<br/>orders · cancellations"]
+        S2["Hospital B2B orders<br/>Google Sheets"]
+        S3["Retailer / vendor files<br/>S3 bucket"]
+        S4["Planning inputs<br/>demand forecast · BOM<br/>batch sizes · capacity · lead times"]
+    end
+
+    subgraph ING["Ingestion"]
+        direction TB
+        I1["Fivetran"]
+        I2["Scheduled Sheets load"]
+        I3["Snowpipe"]
+    end
+
+    subgraph SF["Snowflake data platform"]
+        direction TB
+        RAW[("RAW schema<br/>immutable landing<br/>source IDs · ingested_at · batch_id")]
+        MAP["SKU standardization<br/>canonical SKU map · dedup<br/>unit normalization"]
+        QUA[("QUARANTINE<br/>unmapped SKUs<br/>malformed records")]
+        CHG["Change processing<br/>Streams + Tasks<br/>idempotent MERGE"]
+        CUR[("CURATED schema<br/>Dynamic Tables<br/>inventory · replenishment")]
+        SERVE[("SERVE schema<br/>read-only views<br/>production_plan · material_reorder")]
+        RAW --> MAP --> CHG --> CUR --> SERVE
+        MAP -. rejects .-> QUA
+    end
+
+    subgraph APP["Assistant application"]
+        direction TB
+        UI["Streamlit UI<br/>question + authenticated user"]
+        PRE["Pre-retrieval controls<br/>authenticate · authorize role<br/>scope class · normalize SKU/period"]
+        LLM["Cortex LLM<br/>selects a tool + parameters<br/>and phrases the result"]
+        REG["Tool registry<br/>3 allowlisted read-only tools<br/>server-side param validation"]
+        GATE["Post-generation validator<br/>claim ↔ record check<br/>qualifiers · freshness"]
+        ANS["Answer control<br/>answer · partial · refuse<br/>clarify · safe failure"]
+        UI --> PRE --> LLM --> REG
+        REG --> LLM
+        LLM --> GATE --> ANS --> UI
+    end
+
+    DASH["Fallback dashboard<br/>daily validated snapshot<br/>+ as-of timestamp"]
+
+    subgraph OBS["Operations and quality"]
+        direction TB
+        OPS["Alerts and logs<br/>job failures · freshness SLA<br/>retries · escalation"]
+        EVAL["Evaluation loop<br/>automated tests · manual reconciliation<br/>manager feedback · regression suite"]
+    end
+
+    S1 --> I1 --> RAW
+    S2 --> I2 --> RAW
+    S3 --> I3 --> RAW
+    S4 --> CUR
+    SERVE -- "SELECT only<br/>(role-scoped)" --> REG
+    SERVE -- "daily snapshot" --> DASH
+    ANS --> OPS
+    CHG --> OPS
+    ANS --> EVAL
+    EVAL -. "new regression cases<br/>logic fixes" .-> CUR
+```
+
+More views in [`docs/architecture.md`](docs/architecture.md): the **request lifecycle** (sequence diagram showing every point where a question can be refused, retried or blocked), the **data model** (entity-relationship diagram) and the **trust boundaries and role access** table.
 
 ## 5. Controlled retrieval and request-time controls
 
