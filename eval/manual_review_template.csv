@@ -1,0 +1,4 @@
+question_id,question,chatbot_answer_summary,authoritative_table_value,numerically_correct,qualifiers_complete,evidence_fresh,reviewer_note,action
+Q04,How many scrub pants should we make this cycle?,planned 500 units,500 (serve.production_plan),yes,no (capacity exception omitted),yes,Answer was correct but silent about the capacity shortfall,Add mandatory-qualifier check + regression case
+Q01,How many scrub tops should we produce next cycle?,planned 370 units,400 (batch-rounded),yes (math) / no (operational),n/a,yes,Production manager: 370 is not executable with 100-unit batches,Add batch-size + capacity constraints in SQL; re-test (-> 400)
+Q19,Scrub tops plan + demand in 2027?,refused entirely,planned 400 (in-scope part),n/a,no,yes,Refusing the whole mixed question wastes the answerable part,Add partial-answer response class

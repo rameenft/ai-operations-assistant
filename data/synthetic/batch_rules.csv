@@ -1,0 +1,4 @@
+sku,batch_size,capacity_per_cycle
+SCR-TOP-001,100,600
+SCR-PNT-001,100,550
+LAB-COT-001,50,400

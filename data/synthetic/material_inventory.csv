@@ -1,0 +1,4 @@
+record_id,material,unit,on_hand,scheduled_receipts,safety_stock,pack_size,min_order_qty,lead_time_days,source_ts
+MAT-0001,FAB-POLY-BLU,metres,900,300,200,100,500,21,2026-11-15T05:00:00
+MAT-0002,FAB-COT-WHT,metres,400,0,100,100,500,28,2026-11-15T05:00:00
+MAT-0003,BTN-STD,pieces,1000,0,300,500,1000,10,2026-11-15T05:00:00
