@@ -151,17 +151,6 @@ Four iterations, each driven by a failure the previous version could not see:
 
 Run it: `python eval/run_eval.py` (exits non-zero if any gate fails; `pytest` runs it too, so a regression blocks the build).
 
-```text
-Evaluated 32 labeled questions + 7 accuracy and 7 reliability injections (synthetic data)
-
-| Gate                                | Passed | Score | Status |
-|-------------------------------------|--------|-------|--------|
-| Numerical & citation accuracy       | 36/36  | 100%  | PASS   |
-| Scope / partial-answer correctness  | 32/32  | 100%  | PASS   |
-| Completeness & operational validity | 20/20  | 100%  | PASS   |
-| Reliability & regression            | 7/7    | 100%  | PASS   |
-```
-
 > **Read this scorecard honestly.** It is run against a deterministic stand-in generator and a rule-based router on synthetic data, so 100% mainly demonstrates that the *harness and controls work* (e.g. tampered answers with swapped SKUs, periods, units, wrong values, omitted qualifiers and invented numbers are all blocked). It is **not** the measured accuracy of the production LLM, which is evaluated separately against real Snowflake tables.
 
 ## 10. Run it locally
@@ -176,17 +165,6 @@ python eval/run_eval.py            # print the gate scorecard
 pip install streamlit              # optional: chat UI
 streamlit run app/streamlit_app.py
 ```
-
-## What is real vs. simplified
-
-| Component | Production (Snowflake) | This prototype |
-|---|---|---|
-| Storage and compute | Snowflake: Streams, Tasks, Dynamic Tables, role-based views | `sqlite` in memory; SQL in `sql/` is illustrative only |
-| Ingestion | Windsor.ai, Google Sheets, Snowpipe | Synthetic CSVs in `data/synthetic/` |
-| Planning calculations | SQL views | Same logic in Python ([`planning.py`](src/zaar_assistant/planning.py)) |
-| Tool selection / answer text | Cortex LLM | Rule-based router + template generator (the validator treats any generator as untrusted) |
-| UI | Streamlit in Snowflake | Local Streamlit app (written for this repo; not part of the automated tests) |
-| Business numbers | Confidential | Entirely synthetic |
 
 ## Repo layout
 
